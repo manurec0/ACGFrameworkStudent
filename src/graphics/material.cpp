@@ -173,10 +173,25 @@ void VolumeMaterial::setUniforms(Camera* camera, glm::mat4 model, Mesh* mesh) {
 	temp = inverseModel * temp;
 	glm::vec3 local_camera_pos = glm::vec3(temp.x / temp.w, temp.y / temp.w, temp.z / temp.w);
 
+	glm::vec3 boxMin = mesh->aabb_min;
+	glm::vec3 boxMax = mesh->aabb_max;
+
+	glm::vec3 rayOrigin = local_camera_pos;
+	glm::vec3 rayDir = glm::normalize(boxMin - rayOrigin);
+
+	//intersection function
+	glm::vec3 tMin = (boxMin - rayOrigin) / rayDir;
+	glm::vec3 tMax = (boxMax - rayOrigin) / rayDir;
+	glm::vec3 t1 = glm::min(tMin, tMax);
+	glm::vec3 t2 = glm::max(tMin, tMax);
+
+	float ta = glm::max(glm::max(t1.x, t1.y), t1.z);  // Starting intersection
+	float tb = glm::min(glm::min(t2.x, t2.y), t2.z);  // Ending intersection
+
 	//upload node uniforms
-	//this->shader->setUniform("u_ending_position", ta);
-	//this->shader->setUniform("u_ending_position", tb);
-	//this->shader->setUniform("u_absorption_coefficient", abs);
+	this->shader->setUniform("u_ending_position", ta);
+	this->shader->setUniform("u_ending_position", tb);
+
 	this->shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
 	this->shader->setUniform("u_camera_position", local_camera_pos);
 	this->shader->setUniform("u_model", model);
@@ -210,6 +225,7 @@ void VolumeMaterial::render(Mesh* mesh, glm::mat4 model, Camera* camera) {
 				glDepthFunc(GL_LEQUAL);
 			}
 			this->shader->setUniform("u_ambient_light", Application::instance->ambient_light * (float)first_pass);
+			this->shader->setUniform("u_background_color", Application::instance->background_color);
 
 			if (num_lights > 0) {
 				Light* light = Application::instance->light_list[nlight];
