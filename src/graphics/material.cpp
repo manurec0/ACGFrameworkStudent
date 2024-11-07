@@ -158,3 +158,82 @@ void StandardMaterial::renderInMenu()
 
 	if (!this->show_normals) ImGui::ColorEdit3("Color", (float*)&this->color);
 }
+
+VolumeMaterial::VolumeMaterial(double absorption_coefficient)
+{
+	this->absorption_coefficient = absorption_coefficient;
+	this->base_shader = Shader::Get("res/shaders/volume.vs", "res/shaders/volume.fs");
+	this->shader = this->base_shader;
+}
+
+void VolumeMaterial::setUniforms(Camera* camera, glm::mat4 model, Mesh* mesh) {
+	//Convert Camera position to Local Coordinates
+	glm::mat4 inverseModel = glm::inverse(model);
+	glm::vec4 temp = glm::vec4(camera->eye, 1.0);
+	temp = inverseModel * temp;
+	glm::vec3 local_camera_pos = glm::vec3(temp.x / temp.w, temp.y / temp.w, temp.z / temp.w);
+
+	//upload node uniforms
+	//this->shader->setUniform("u_ending_position", ta);
+	//this->shader->setUniform("u_ending_position", tb);
+	//this->shader->setUniform("u_absorption_coefficient", abs);
+	this->shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
+	this->shader->setUniform("u_camera_position", local_camera_pos);
+	this->shader->setUniform("u_model", model);
+
+	this->shader->setUniform("u_color", this->color);
+	this->shader->setUniform("u_absorption_coefficient", this->absorption_coefficient);
+
+	this->shader->setUniform("u_boxMin", mesh->aabb_min);
+	this->shader->setUniform("u_boxMax", mesh->aabb_max);
+}
+
+void VolumeMaterial::render(Mesh* mesh, glm::mat4 model, Camera* camera) {
+	bool first_pass = true;
+	if (mesh && this->shader)
+	{
+		// enable shader
+		this->shader->enable();
+
+		// Multi pass render
+		int num_lights = Application::instance->light_list.size();
+		for (int nlight = -1; nlight < num_lights; nlight++)
+		{
+			if (nlight == -1) { nlight++; } // hotfix
+
+			// upload uniforms
+			setUniforms(camera, model, mesh);
+
+			// upload light uniforms
+			if (!first_pass) {
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+				glDepthFunc(GL_LEQUAL);
+			}
+			this->shader->setUniform("u_ambient_light", Application::instance->ambient_light * (float)first_pass);
+
+			if (num_lights > 0) {
+				Light* light = Application::instance->light_list[nlight];
+				light->setUniforms(this->shader, model);
+			}
+			else {
+				// Set some uniforms in case there is no light
+				this->shader->setUniform("u_light_intensity", 1.f);
+				this->shader->setUniform("u_light_shininess", 1.f);
+				this->shader->setUniform("u_light_color", glm::vec4(0.f));
+			}
+
+			// do the draw call
+			mesh->render(GL_TRIANGLES);
+
+			first_pass = false;
+		}
+
+		// disable shader
+		this->shader->disable();
+	}
+}
+
+void VolumeMaterial::renderInMenu() {
+	ImGui::ColorEdit3("Color", (float*)&this->color);
+	ImGui::SliderFloat("Absorption Coefficient", &this->absorption_coefficient, 0.0f, 5.0f); // Absorption control
+}

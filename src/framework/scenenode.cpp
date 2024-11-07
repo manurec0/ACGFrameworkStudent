@@ -60,3 +60,44 @@ void SceneNode::renderInMenu()
 		ImGui::TreePop();
 	}
 }
+
+VolumeNode::VolumeNode()
+{
+	this->type = NODE_BASE;
+	this->name = std::string("Volume_Node" + std::to_string(this->lastNameId++));
+}
+
+void VolumeNode::render(Camera* camera)
+{
+	if (this->material && this->visible)
+		this->material->render(this->mesh, this->model, camera);
+}
+
+void VolumeNode::renderWireframe(Camera* camera)
+{
+	WireframeMaterial mat = WireframeMaterial();
+	mat.render(this->mesh, this->model, camera);
+}
+
+void VolumeNode::renderInMenu()
+{
+	// Model edit
+	if (ImGui::TreeNode("Model"))
+	{
+		float matrixTranslation[3], matrixRotation[3], matrixScale[3];
+		ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(this->model), matrixTranslation, matrixRotation, matrixScale);
+		ImGui::DragFloat3("Position", matrixTranslation, 0.1f);
+		ImGui::DragFloat3("Rotation", matrixRotation, 0.1f);
+		ImGui::DragFloat3("Scale", matrixScale, 0.1f);
+		ImGuizmo::RecomposeMatrixFromComponents(matrixTranslation, matrixRotation, matrixScale, glm::value_ptr(this->model));
+
+		ImGui::TreePop();
+	}
+
+	// Material
+	if (this->material && ImGui::TreeNode("Material"))
+	{
+		material->renderInMenu();
+		ImGui::TreePop();
+	}
+}
