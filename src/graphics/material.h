@@ -63,9 +63,11 @@ public:
 	float absorption_coefficient;
 	glm::vec4 color;
 
-	Shader* base_shader = NULL;
+	Shader* basic_shader = NULL;
+	Shader* absorption_shader = NULL;
+	Shader* normal_shader = NULL;
 
-	VolumeMaterial(double absorption_coefficient = 2.0, glm::vec4 color = glm::vec4(0.f));
+	VolumeMaterial(double absorption_coefficient = 1.0, glm::vec4 color = glm::vec4(0.f));
 
 	void setUniforms(Camera* camera, glm::mat4 model) override {
 		setUniforms(camera, model, nullptr);
@@ -73,5 +75,6 @@ public:
 	void setUniforms(Camera* camera, glm::mat4 model, Mesh* mesh);
 	void render(Mesh* mesh, glm::mat4 model, Camera* camera) override;
 	void renderInMenu() override;
+	void setShader();
 
 };

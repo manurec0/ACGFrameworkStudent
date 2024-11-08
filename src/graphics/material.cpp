@@ -6,6 +6,19 @@
 #include <fstream>
 #include <algorithm>
 
+enum ShaderType {
+	ABSORPTION_SHADER,
+	BASIC_SHADER,
+	NORMAL_SHADER
+};
+enum VolumeType {
+	HOMOGENEOUS,
+	HETEROGENEOUS
+};
+
+// store the current shader selection
+ShaderType currentShaderType = ABSORPTION_SHADER;
+VolumeType currentVolumeType = HOMOGENEOUS;
 
 FlatMaterial::FlatMaterial(glm::vec4 color)
 {
@@ -163,8 +176,10 @@ VolumeMaterial::VolumeMaterial(double absorption_coefficient, glm::vec4 color)
 {
 	this->color = color;
 	this->absorption_coefficient = absorption_coefficient;
-	this->base_shader = Shader::Get("res/shaders/basic.vs", "res/shaders/volume.fs");
-	this->shader = this->base_shader;
+	this->basic_shader = Shader::Get("res/shaders/basic.vs", "res/shaders/basic.fs");
+	this->absorption_shader = Shader::Get("res/shaders/basic.vs", "res/shaders/absorption.fs");
+	this->normal_shader = Shader::Get("res/shaders/basic.vs", "res/shaders/normal.fs");
+	this->shader = this->absorption_shader;
 }
 
 void VolumeMaterial::setUniforms(Camera* camera, glm::mat4 model, Mesh* mesh) {
@@ -257,4 +272,33 @@ void VolumeMaterial::render(Mesh* mesh, glm::mat4 model, Camera* camera) {
 void VolumeMaterial::renderInMenu() {
 	ImGui::ColorEdit3("Color", (float*)&this->color);
 	ImGui::SliderFloat("Absorption Coefficient", &this->absorption_coefficient, 0.0f, 5.0f); // Absorption control
+	// Dropdown menu for shader selection
+
+	const char* shaderNames[] = { "Absorption Shader", "Basic Shader", "Normal Shader" };
+	const char* volumeTypeNames[] = { "Homogeneous", "Heterogeneous" };
+	int shaderIndex = static_cast<int>(currentShaderType);  // Convert enum to int for ImGui
+	int volumeTypeIndex = static_cast<int>(currentVolumeType);  // Convert enum to int for ImGui
+
+	if (ImGui::Combo("Shader Type", &shaderIndex, shaderNames, IM_ARRAYSIZE(shaderNames))) {
+		currentShaderType = static_cast<ShaderType>(shaderIndex);  // Update enum based on selection
+		setShader();
+	}
+	if (ImGui::Combo("Volume Type", &volumeTypeIndex, volumeTypeNames, IM_ARRAYSIZE(volumeTypeNames))) {
+		currentVolumeType = static_cast<VolumeType>(volumeTypeIndex);  // Update enum based on selection
+	}
+
+}
+
+void VolumeMaterial::setShader() {
+	switch (currentShaderType) {
+	case ABSORPTION_SHADER:
+		this->shader = this->absorption_shader;
+		break;
+	case BASIC_SHADER:
+		this->shader = this->basic_shader;
+		break;
+	case NORMAL_SHADER:
+		this->shader = this->normal_shader;
+		break;
+	}
 }
