@@ -12,8 +12,8 @@ enum ShaderType {
 	NORMAL_SHADER
 };
 enum VolumeType {
-	HOMOGENEOUS,
-	HETEROGENEOUS
+	HOMOGENEOUS = 0,
+	HETEROGENEOUS = 1
 };
 
 // store the current shader selection
@@ -172,10 +172,13 @@ void StandardMaterial::renderInMenu()
 	if (!this->show_normals) ImGui::ColorEdit3("Color", (float*)&this->color);
 }
 
-VolumeMaterial::VolumeMaterial(double absorption_coefficient, glm::vec4 color)
+VolumeMaterial::VolumeMaterial(double absorption_coefficient, glm::vec4 color, float noise_scale, int noise_detail, float step_length)
 {
 	this->color = color;
 	this->absorption_coefficient = absorption_coefficient;
+	this->noise_scale = noise_scale;
+	this->noise_detail = noise_detail;
+	this->step_length = step_length;
 	this->basic_shader = Shader::Get("res/shaders/basic.vs", "res/shaders/basic.fs");
 	this->absorption_shader = Shader::Get("res/shaders/basic.vs", "res/shaders/absorption.fs");
 	this->normal_shader = Shader::Get("res/shaders/basic.vs", "res/shaders/normal.fs");
@@ -220,6 +223,13 @@ void VolumeMaterial::setUniforms(Camera* camera, glm::mat4 model, Mesh* mesh) {
 
 	this->shader->setUniform("u_ambient_light", Application::instance->ambient_light);
 	this->shader->setUniform("u_background_color", Application::instance->background_color);
+
+	int volumeTypeInt = static_cast<int>(currentVolumeType);
+	this->shader->setUniform("u_volume_type", volumeTypeInt);
+	this->shader->setUniform("u_step_length", this->step_length);
+	this->shader->setUniform("u_noise_scale", this->noise_scale);
+	this->shader->setUniform("u_noise_detail", this->noise_detail);
+
 
 }
 
@@ -271,7 +281,7 @@ void VolumeMaterial::render(Mesh* mesh, glm::mat4 model, Camera* camera) {
 
 void VolumeMaterial::renderInMenu() {
 	ImGui::ColorEdit3("Color", (float*)&this->color);
-	ImGui::SliderFloat("Absorption Coefficient", &this->absorption_coefficient, 0.0f, 5.0f); // Absorption control
+	ImGui::SliderFloat("Absorption Coefficient", &this->absorption_coefficient, 0.0f, 2.0f); // Absorption control
 	// Dropdown menu for shader selection
 
 	const char* shaderNames[] = { "Absorption Shader", "Basic Shader", "Normal Shader" };
@@ -285,6 +295,12 @@ void VolumeMaterial::renderInMenu() {
 	}
 	if (ImGui::Combo("Volume Type", &volumeTypeIndex, volumeTypeNames, IM_ARRAYSIZE(volumeTypeNames))) {
 		currentVolumeType = static_cast<VolumeType>(volumeTypeIndex);  // Update enum based on selection
+	}
+	if (static_cast<int>(currentVolumeType) == 1) {
+		ImGui::SliderFloat("Step Length", &this->step_length, 0.01f, 3.0f); // Absorption control
+		//ImGui::SliderFloat("Noise Detail", &this->noise_detail, 0.0f, 5.0f); // Absorption control
+		ImGui::SliderInt("Noise Detail", &this->noise_detail, 0, 5);
+		ImGui::SliderFloat("Noise Scale", &this->noise_scale, 0.0f, 5.0f); // Absorption control
 	}
 
 }
