@@ -129,7 +129,7 @@ void main()
         }
 
         float transmittance = exp(-tau);
-        FragColor = u_background_color * transmittance;
+        FragColor = u_background_color * transmittance + u_color * (1.0 - transmittance);
 
     }
 
