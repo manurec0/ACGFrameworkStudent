@@ -33,7 +33,7 @@ void Application::init(GLFWwindow* window)
     
     VolumeNode* volumeNode = new VolumeNode();
     volumeNode->mesh = Mesh::Get("res/meshes/cube.obj");
-    volumeNode->material = new VolumeMaterial(0.1f);
+    volumeNode->material = new VolumeMaterial();
     this->node_list.push_back(volumeNode);
 }
 

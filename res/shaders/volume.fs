@@ -7,14 +7,12 @@ in vec3 v_world_position;
 
 uniform mat4 u_model;
 uniform vec3 u_camera_position;
-uniform vec3 u_color;
-uniform vec4 u_ambient_color;
+uniform vec4 u_color;
+uniform vec4 u_ambient_light;
 uniform vec4 u_background_color;
 uniform float u_absorption_coefficient;
 uniform vec3 u_boxMin;
 uniform vec3 u_boxMax;
-
-uniform int u_volume_type;
 
 
 out vec4 FragColor;
@@ -48,18 +46,14 @@ void main()
     float ta = intersection.x;
     float tb = intersection.y;
 
-    // Calculate the optical thickness
-    vec3 B = vec3(u_background_color.x, u_background_color.y, u_background_color.z);
-    //float opticalThickness = u_absorption_coefficient * (u_ending_position - u_start_position);
     float opticalThickness = tb - ta;
 
     // Compute transmittance using Beer-Lambert Law
     float transmittance = exp(-u_absorption_coefficient * opticalThickness);
 
-    // Final color blending with background color
-    vec3 finalColor = B * transmittance;
+    //FragColor = vec4(finalColor, 1.0);
 
-    FragColor = vec4(finalColor, 1.0);
+    FragColor = u_background_color * transmittance + u_color * (1.0 - transmittance);
 
 
 

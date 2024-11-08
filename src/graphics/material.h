@@ -61,10 +61,11 @@ public:
 class VolumeMaterial : public Material {
 public:
 	float absorption_coefficient;
+	glm::vec4 color;
 
 	Shader* base_shader = NULL;
 
-	VolumeMaterial(double absorption_coefficient);
+	VolumeMaterial(double absorption_coefficient = 2.0, glm::vec4 color = glm::vec4(0.f));
 
 	void setUniforms(Camera* camera, glm::mat4 model) override {
 		setUniforms(camera, model, nullptr);
