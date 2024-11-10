@@ -91,10 +91,10 @@ void main()
     vec3 rWorld = normalize(v_world_position - u_camera_position);
     vec3 r = normalize((inverseModel * vec4(rWorld, 0.0)).xyz);
 
-    vec3 boxMin = vec3(-1.0, -1.0, -1.0);
-    vec3 boxMax = vec3(1.0, 1.0, 1.0);
+    //vec3 boxMin = vec3(-1.0, -1.0, -1.0);
+    //vec3 boxMax = vec3(1.0, 1.0, 1.0);
 
-    vec2 intersection = intersectAABB(local_camera_pos, r, boxMin, boxMax);
+    vec2 intersection = intersectAABB(local_camera_pos, r, u_boxMin, u_boxMax);
 
     float ta = intersection.x;
     float tb = intersection.y;
@@ -104,8 +104,6 @@ void main()
     if(u_volume_type == 0){
         // Compute transmittance using Beer-Lambert Law
         float transmittance = exp(-u_absorption_coefficient * opticalThickness);
-
-        //FragColor = vec4(finalColor, 1.0);
 
         FragColor = u_background_color * transmittance + u_color * (1.0 - transmittance);
     }
