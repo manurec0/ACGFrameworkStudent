@@ -22,18 +22,19 @@ void Application::init(GLFWwindow* window)
 
     this->ambient_light = glm::vec4(0.75f, 0.75f, 0.75f, 1.f);
     this->background_color = glm::vec4(0.75f, 0.75f, 0.75f, 1.f);
-    //this->background_color = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);
 
-    /* ADD NODES TO THE SCENE */
+    /* ADD NODES TO THE SCENE 
     SceneNode* example = new SceneNode("Example Node");
     example->mesh = Mesh::Get("res/meshes/sphere.obj");
     example->material = new StandardMaterial();
-    this->node_list.push_back(example);
+    this->node_list.push_back(example);*/
 
     
     VolumeNode* volumeNode = new VolumeNode();
     volumeNode->mesh = Mesh::Get("res/meshes/cube.obj");
-    volumeNode->material = new VolumeMaterial();
+    VolumeMaterial* volumeMaterial = new VolumeMaterial();
+    volumeNode->material = volumeMaterial;
+    volumeMaterial->loadVDB("res/meshes/bunny_cloud.vdb");
     this->node_list.push_back(volumeNode);
 }
 

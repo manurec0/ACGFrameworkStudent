@@ -17,9 +17,16 @@ enum VolumeType {
 	HETEROGENEOUS = 1
 };
 
+enum DensityType {
+	CONSTANT = 0,
+	NOISE = 1,
+	TEXTURE = 2
+};
+
 // store the current shader selection
 ShaderType currentShaderType = ABSORPTION_SHADER;
 VolumeType currentVolumeType = HOMOGENEOUS;
+DensityType currentDensityType = CONSTANT;
 
 FlatMaterial::FlatMaterial(glm::vec4 color)
 {
@@ -173,7 +180,7 @@ void StandardMaterial::renderInMenu()
 	if (!this->show_normals) ImGui::ColorEdit3("Color", (float*)&this->color);
 }
 
-VolumeMaterial::VolumeMaterial(double absorption_coefficient, glm::vec4 color, float noise_scale, int noise_detail, float step_length, float emission_coefficient)
+VolumeMaterial::VolumeMaterial(double absorption_coefficient, glm::vec4 color, float noise_scale, int noise_detail, float step_length, float emission_coefficient, float density_scale)
 {
 	this->color = color;
 	this->absorption_coefficient = absorption_coefficient;
@@ -181,8 +188,9 @@ VolumeMaterial::VolumeMaterial(double absorption_coefficient, glm::vec4 color, f
 	this->noise_detail = noise_detail;
 	this->step_length = step_length;
 	this->emission_coefficient = emission_coefficient;
+	this->density_scale = density_scale;
 	this->basic_shader = Shader::Get("res/shaders/basic.vs", "res/shaders/basic.fs");
-	this->absorption_shader = Shader::Get("res/shaders/basic.vs", "res/shaders/absorption.fs");
+	this->absorption_shader = Shader::Get("res/shaders/basic.vs", "res/shaders/test.fs");
 	this->normal_shader = Shader::Get("res/shaders/basic.vs", "res/shaders/normal.fs");
 	this->emission_absorption = Shader::Get("res/shaders/basic.vs", "res/shaders/emission-absorption.fs");
 	this->shader = this->absorption_shader;
@@ -197,22 +205,6 @@ void VolumeMaterial::setUniforms(Camera* camera, glm::mat4 model, Mesh* mesh) {
 
 	glm::vec3 boxMin = mesh->aabb_min;
 	glm::vec3 boxMax = mesh->aabb_max;
-
-	//glm::vec3 rayOrigin = local_camera_pos;
-	//glm::vec3 rayDir = glm::normalize(boxMin - rayOrigin);
-
-	////intersection function
-	//glm::vec3 tMin = (boxMin - rayOrigin) / rayDir;
-	//glm::vec3 tMax = (boxMax - rayOrigin) / rayDir;
-	//glm::vec3 t1 = glm::min(tMin, tMax);
-	//glm::vec3 t2 = glm::max(tMin, tMax);
-
-	//float ta = glm::max(glm::max(t1.x, t1.y), t1.z);  // Starting intersection
-	//float tb = glm::min(glm::min(t2.x, t2.y), t2.z);  // Ending intersection
-
-	////upload node uniforms
-	//this->shader->setUniform("u_ending_position", ta);
-	//this->shader->setUniform("u_ending_position", tb);
 
 	this->shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
 	this->shader->setUniform("u_camera_position", local_camera_pos);
@@ -234,7 +226,13 @@ void VolumeMaterial::setUniforms(Camera* camera, glm::mat4 model, Mesh* mesh) {
 	this->shader->setUniform("u_noise_scale", this->noise_scale);
 	this->shader->setUniform("u_noise_detail", this->noise_detail);
 
-
+	// VDB-related uniforms
+	if (this->texture) {
+		this->shader->setUniform("u_density_texture", this->texture,0);
+	}
+	this->shader->setUniform("u_density_source", currentDensityType); // 0, 1, or 2 based on GUI selection
+	this->shader->setUniform("u_density_scale", this->density_scale);
+	this->shader->setUniform("u_constant_density", 1.f);
 }
 
 void VolumeMaterial::render(Mesh* mesh, glm::mat4 model, Camera* camera) {
@@ -290,8 +288,10 @@ void VolumeMaterial::renderInMenu() {
 
 	const char* shaderNames[] = { "Absorption Shader", "Basic Shader", "Normal Shader", "Emission-Absorption"};
 	const char* volumeTypeNames[] = { "Homogeneous", "Heterogeneous" };
+	const char* densitySources[] = { "Constant", "3D Noise", "VDB File" };
 	int shaderIndex = static_cast<int>(currentShaderType);  // Convert enum to int for ImGui
 	int volumeTypeIndex = static_cast<int>(currentVolumeType);  // Convert enum to int for ImGui
+	int densityIndex = static_cast<int>(currentDensityType);
 
 	if (ImGui::Combo("Shader Type", &shaderIndex, shaderNames, IM_ARRAYSIZE(shaderNames))) {
 		currentShaderType = static_cast<ShaderType>(shaderIndex);  // Update enum based on selection
@@ -300,6 +300,12 @@ void VolumeMaterial::renderInMenu() {
 	if (ImGui::Combo("Volume Type", &volumeTypeIndex, volumeTypeNames, IM_ARRAYSIZE(volumeTypeNames))) {
 		currentVolumeType = static_cast<VolumeType>(volumeTypeIndex);  // Update enum based on selection
 	}
+
+	if (ImGui::Combo("Density Type", &densityIndex, densitySources, IM_ARRAYSIZE(densitySources))) {
+		currentDensityType = static_cast<DensityType>(densityIndex);
+	}
+	ImGui::SliderFloat("Density Scale", &this->density_scale, 0.1f, 10.0f);
+
 	if (static_cast<int>(currentVolumeType) == 1) {
 		ImGui::SliderFloat("Emission Coefficient", &this->emission_coefficient, 0.0f, 5.0f);
 		ImGui::SliderFloat("Step Length", &this->step_length, 0.01f, 3.0f); // Absorption control
