@@ -194,6 +194,7 @@ VolumeMaterial::VolumeMaterial(double absorption_coefficient, glm::vec4 color, f
 	this->normal_shader = Shader::Get("res/shaders/basic.vs", "res/shaders/normal.fs");
 	this->emission_absorption = Shader::Get("res/shaders/basic.vs", "res/shaders/emission-absorption.fs");
 	this->shader = this->absorption_shader;
+
 }
 
 void VolumeMaterial::setUniforms(Camera* camera, glm::mat4 model, Mesh* mesh) {
@@ -216,6 +217,7 @@ void VolumeMaterial::setUniforms(Camera* camera, glm::mat4 model, Mesh* mesh) {
 
 	this->shader->setUniform("u_boxMin", mesh->aabb_min);
 	this->shader->setUniform("u_boxMax", mesh->aabb_max);
+
 
 	this->shader->setUniform("u_ambient_light", Application::instance->ambient_light);
 	this->shader->setUniform("u_background_color", Application::instance->background_color);
@@ -454,5 +456,7 @@ void VolumeMaterial::estimate3DTexture(easyVDB::OpenVDBReader* vdbReader)
 		// and this: https://registry.khronos.org/OpenGL-Refpages/gl4/html/glTexImage3D.xhtml
 		this->texture = new Texture();
 		this->texture->create3D(resolution, resolution, resolution, GL_RED, GL_FLOAT, false, data, GL_R8);
+		this->boxMin = bbox.min;
+		this->boxMax = bbox.max;
 	}
 }

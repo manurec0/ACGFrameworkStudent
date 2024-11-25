@@ -5,26 +5,24 @@ in vec3 v_world_position;
 // Uniforms for transformations and volume parameters
 uniform mat4 u_model;
 uniform vec3 u_camera_position;
-uniform mat4 u_viewprojection;
+uniform vec4 u_color;
+uniform vec4 u_ambient_light;
+uniform vec4 u_background_color;
+uniform float u_absorption_coefficient;
 uniform vec3 u_boxMin;
 uniform vec3 u_boxMax;
-
-// Uniforms for density sampling
-uniform int u_density_source;         // 0: constant, 1: noise, 2: 3D texture
+uniform int u_density_source;  // 0: constant, 1: noise
+uniform float u_constant_density;  // Density for constant mode
+uniform float u_noise_scale;       // Scale for procedural noise
+uniform int u_noise_detail;        // Detail level for procedural noise
+uniform float u_step_length;
 uniform sampler3D u_density_texture;  // 3D texture for VDB
 uniform float u_density_scale;        // Scale for density values
-uniform float u_constant_density;     // For constant density
-uniform float u_noise_scale;          // Scale for procedural noise
-uniform int u_noise_detail;           // Detail level for procedural noise
-
-// Rendering parameters
-uniform float u_absorption_coefficient;
-uniform float u_step_length;
 
 // Output color
 out vec4 FragColor;
 
-// Noise function utilities (for noise-based density)
+// Noise function utilities (for 3D noise-based density)
 float fractalPerlin(vec3 position, float scale, int detail) {
     float noiseValue = 0.0;
     float amplitude = 0.5;
@@ -39,73 +37,88 @@ float fractalPerlin(vec3 position, float scale, int detail) {
     return noiseValue;
 }
 
-// Function to sample density based on the source
-float sampleDensity(vec3 position) {
-    if (u_density_source == 0) {
-        // Constant density
-        return u_constant_density;
-    } else if (u_density_source == 1) {
-        // Procedural noise
-        return clamp(fractalPerlin(position, u_noise_scale, u_noise_detail), 0.0, 1.0);
-    } else if (u_density_source == 2) {
-        // 3D texture sampling
-        vec3 texCoords = (position - u_boxMin) / (u_boxMax - u_boxMin); // Normalize to [0,1]
-        return texture(u_density_texture, texCoords).r * u_density_scale;
-    }
-    return 0.0;
+// Function to compute ray-box intersection
+vec2 intersectAABB(vec3 rayOrigin, vec3 rayDir, vec3 boxMin, vec3 boxMax) {
+    vec3 tMin = (boxMin - rayOrigin) / rayDir;
+    vec3 tMax = (boxMax - rayOrigin) / rayDir;
+    vec3 t1 = min(tMin, tMax);
+    vec3 t2 = max(tMin, tMax);
+    float tNear = max(max(t1.x, t1.y), t1.z);
+    float tFar = min(min(t2.x, t2.y), t2.z);
+    return vec2(tNear, tFar);
 }
 
 void main() {
-    // Compute ray direction and starting position
+    // Transform camera position to local space
     mat4 inverseModel = inverse(u_model);
     vec3 local_camera_pos = (inverseModel * vec4(u_camera_position, 1.0)).xyz;
 
+    // Compute ray direction
     vec3 rWorld = normalize(v_world_position - u_camera_position);
     vec3 r = normalize((inverseModel * vec4(rWorld, 0.0)).xyz);
 
-    // Intersect the ray with the volume's bounding box
-    vec3 tMin = (u_boxMin - local_camera_pos) / r;
-    vec3 tMax = (u_boxMax - local_camera_pos) / r;
-    vec3 t1 = min(tMin, tMax);
-    vec3 t2 = max(tMin, tMax);
-    float ta = max(max(t1.x, t1.y), t1.z);
-    float tb = min(min(t2.x, t2.y), t2.z);
+    // Intersect ray with the bounding box
+    vec2 intersection = intersectAABB(local_camera_pos, r, u_boxMin, u_boxMax);
+    float ta = intersection.x;
+    float tb = intersection.y;
 
-    // If the ray does not intersect the volume
+    // If no intersection, return background color
     if (ta > tb || tb < 0.0) {
-        FragColor = vec4(0.0); // Transparent background
+        FragColor = u_background_color;
         return;
     }
 
-    // Ray marching loop
-    float t = ta;                // Start at the entry point
-    float tau = 0.0;             // Accumulated optical thickness
-    const int maxSteps = 256;    // Maximum number of steps
-    int stepCount = 0;           // Step counter
+    // Initialize variables for ray marching
+    float tau = 0.0;
+    float t = ta + u_step_length / 2.0;
 
-    while (t < tb && stepCount < maxSteps) {
-        // Compute the current sample position in the volume
-        vec3 P = local_camera_pos + r * t;
+    // Handle density sources
+    if (u_density_source == 0) {
+        float opticalThickness = tb - ta;
 
-        // Sample the density at the current position
-        float density = sampleDensity(P);
+        float transmittance = exp(-u_absorption_coefficient * opticalThickness);
 
-        // Accumulate optical thickness
-        tau += u_absorption_coefficient * density * u_step_length;
+        FragColor = u_background_color * transmittance;
 
-        // Break if the transmittance is near zero (all light absorbed)
-        if (exp(-tau) < 0.01) {
-            break;
+    } else if (u_density_source == 1) {
+        float tau = 0.0;
+        float t = ta + u_step_length / 2.0;
+
+        while (t < tb){
+            vec3 P = local_camera_pos + r * t;
+            float noiseValue = clamp(fractalPerlin(P, u_noise_scale, u_noise_detail), 0.0, 1.0) * u_absorption_coefficient;
+
+            tau += noiseValue * u_step_length;
+            t += u_step_length;
         }
 
-        // Advance to the next step
-        t += u_step_length;
-        stepCount++;
+        float transmittance = exp(-tau);
+        FragColor = u_background_color * transmittance + u_color * (1.0 - transmittance);
+    } else if (u_density_source == 2) {
+        while (t < tb) {
+            vec3 P = local_camera_pos + r * t;
+
+            // Compute normalized texture coordinates
+            vec3 texCoords = (P - u_boxMin) / (u_boxMax - u_boxMin);
+
+            // Sample density from the 3D texture
+            float density = texture(u_density_texture, texCoords).r * u_density_scale;
+
+            // Accumulate optical thickness
+            tau += density * u_absorption_coefficient * u_step_length;
+
+            // Break early if transmittance becomes negligible
+            if (exp(-tau) < 0.01) {
+                break;
+            }
+
+            t += u_step_length;
+        }
+
+        // Compute final transmittance
+        float transmittance = exp(-tau);
+
+        // Final color combining background and material color
+        FragColor = u_background_color * transmittance + u_color * (1.0 - transmittance);
     }
-
-    // Compute transmittance
-    float transmittance = exp(-tau);
-
-    // Visualize the transmittance
-    FragColor = vec4(vec3(1.0 - transmittance), 1.0); // Inverse transmittance as grayscale
 }

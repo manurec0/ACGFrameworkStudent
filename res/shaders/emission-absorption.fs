@@ -122,7 +122,7 @@ void main() {
         }
 
         float finalTransmittance = exp(-tau);
-        FragColor = mix(u_background_color * finalTransmittance, accumulatedEmission, 1.0 - finalTransmittance);
+        FragColor = (u_background_color * finalTransmittance) + (accumulatedEmission * (1.0 - finalTransmittance));
     }
 
 

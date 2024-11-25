@@ -69,6 +69,8 @@ public:
 	float emission_coefficient;
 	float density_scale;
 	glm::vec4 color;
+	glm::vec3 boxMin;
+	glm::vec3 boxMax;
 
 	Shader* basic_shader = NULL;
 	Shader* absorption_shader = NULL;
