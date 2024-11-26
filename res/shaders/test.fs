@@ -19,6 +19,15 @@ uniform float u_step_length;
 uniform sampler3D u_density_texture;  // 3D texture for VDB
 uniform float u_density_scale;        // Scale for density values
 
+
+//light uniforms
+uniform float u_light_intensity;
+uniform float u_light_shininess;
+uniform vec4 u_light_color;
+uniform vec3 u_light_direction;
+uniform vec3 u_light_position;
+uniform vec3 u_local_light_position;
+
 // Output color
 out vec4 FragColor;
 

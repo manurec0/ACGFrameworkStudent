@@ -29,13 +29,19 @@ void Application::init(GLFWwindow* window)
     example->material = new StandardMaterial();
     this->node_list.push_back(example);*/
 
-    
     VolumeNode* volumeNode = new VolumeNode();
     volumeNode->mesh = Mesh::Get("res/meshes/cube.obj");
     VolumeMaterial* volumeMaterial = new VolumeMaterial();
     volumeNode->material = volumeMaterial;
     volumeMaterial->loadVDB("res/meshes/bunny_cloud.vdb");
     this->node_list.push_back(volumeNode);
+
+    //Create light TASK 2
+    Light* newLight = new Light(glm::vec3(2.f, 0.f, 0.f), LIGHT_POINT, 1.f, glm::vec4(1.f)
+    );
+    this->node_list.push_back(newLight);
+    this->light_list.push_back(newLight);
+
 }
 
 void Application::update(float dt)

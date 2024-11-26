@@ -235,6 +235,12 @@ void VolumeMaterial::setUniforms(Camera* camera, glm::mat4 model, Mesh* mesh) {
 	this->shader->setUniform("u_density_source", currentDensityType); // 0, 1, or 2 based on GUI selection
 	this->shader->setUniform("u_density_scale", this->density_scale);
 	this->shader->setUniform("u_constant_density", 1.f);
+
+	// Light uniforms
+	//this->shader->setUniform("u_light_intensity");
+	//this->shader->setUniform("u_light_color");
+	//this->shader->setUniform("u_light_direction")
+	//this->shader->setUniform("u_light_position");
 }
 
 void VolumeMaterial::render(Mesh* mesh, glm::mat4 model, Camera* camera) {
@@ -286,21 +292,20 @@ void VolumeMaterial::render(Mesh* mesh, glm::mat4 model, Camera* camera) {
 void VolumeMaterial::renderInMenu() {
 	ImGui::ColorEdit3("Color", (float*)&this->color);
 	ImGui::SliderFloat("Absorption Coefficient", &this->absorption_coefficient, 0.0f, 2.0f); // Absorption control
-	// Dropdown menu for shader selection
 
 	const char* shaderNames[] = { "Absorption Shader", "Basic Shader", "Normal Shader", "Emission-Absorption"};
 	const char* volumeTypeNames[] = { "Homogeneous", "Heterogeneous" };
 	const char* densitySources[] = { "Constant", "3D Noise", "VDB File" };
-	int shaderIndex = static_cast<int>(currentShaderType);  // Convert enum to int for ImGui
-	int volumeTypeIndex = static_cast<int>(currentVolumeType);  // Convert enum to int for ImGui
+	int shaderIndex = static_cast<int>(currentShaderType); 
+	int volumeTypeIndex = static_cast<int>(currentVolumeType); 
 	int densityIndex = static_cast<int>(currentDensityType);
 
 	if (ImGui::Combo("Shader Type", &shaderIndex, shaderNames, IM_ARRAYSIZE(shaderNames))) {
-		currentShaderType = static_cast<ShaderType>(shaderIndex);  // Update enum based on selection
+		currentShaderType = static_cast<ShaderType>(shaderIndex);
 		setShader();
 	}
 	if (ImGui::Combo("Volume Type", &volumeTypeIndex, volumeTypeNames, IM_ARRAYSIZE(volumeTypeNames))) {
-		currentVolumeType = static_cast<VolumeType>(volumeTypeIndex);  // Update enum based on selection
+		currentVolumeType = static_cast<VolumeType>(volumeTypeIndex); 
 	}
 
 	if (ImGui::Combo("Density Type", &densityIndex, densitySources, IM_ARRAYSIZE(densitySources))) {
