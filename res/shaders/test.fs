@@ -82,7 +82,7 @@ void main() {
     // Initialize variables for ray marching
     float tau = 0.0;
     float t = ta + u_step_length / 2.0;
-    vec3 accumulatedScattering = vec3(0.0);
+    vec4 accumulatedScattering = vec4(0.0);
 
 
     if (u_density_source == 0) {
@@ -119,7 +119,7 @@ void main() {
         }
 
             // Compute Ls
-            vec3 Ls = u_light_color.rgb * exp(-lightTau);
+            vec4 Ls = u_light_color * exp(-lightTau);
 
             // Accumulate scattering
             accumulatedScattering += u_scattering_coefficient * Ls * transmittance * density * u_step_length;
@@ -130,24 +130,52 @@ void main() {
 
         // Combine transmittance, scattering, and background color
         float finalTransmittance = exp(-tau);
-        vec3 finalColor = u_background_color.rgb * finalTransmittance + accumulatedScattering;
+        //vec3 finalColor = u_background_color.rgb * finalTransmittance + accumulatedScattering;
 
-        FragColor = vec4(finalColor, 1.0);
+        FragColor = u_background_color * finalTransmittance + accumulatedScattering;
 
     } else if (u_density_source == 1) {
-        float tau = 0.0;
-        float t = ta + u_step_length / 2.0;
 
         while (t < tb){
             vec3 P = local_camera_pos + r * t;
             float noiseValue = clamp(fractalPerlin(P, u_noise_scale, u_noise_detail), 0.0, 1.0) * u_absorption_coefficient;
 
-            tau += noiseValue * u_step_length;
+            float extinction = noiseValue * (u_absorption_coefficient + u_scattering_coefficient); //NOise is density 
+            tau += extinction * u_step_length;
+
+            // Compute transmittance
+            float transmittance = exp(-tau);
+
+            vec3 lightDir = normalize(u_light_position - P);
+            vec3 currentLightPos = P + lightDir * u_step_length / 2.0;
+
+            // Compute light contribution
+            float lightTau = 0.0;
+            vec3 lightAccumulation = vec3(0.0);
+            for (int step = 0; step < u_max_light_steps; step++) {
+                vec3 texCoords = (currentLightPos - u_boxMin) / (u_boxMax - u_boxMin);
+                if (any(lessThan(texCoords, vec3(0.0))) || any(greaterThan(texCoords, vec3(1.0))))
+                    break;
+
+                // Sample density along the light ray
+                float lightDensity = clamp(fractalPerlin(currentLightPos, u_noise_scale, u_noise_detail), 0.0, 1.0);
+                lightTau += lightDensity * u_scattering_coefficient * u_step_length;
+
+                // Advance the light ray
+                currentLightPos += lightDir * u_step_length;
+            }
+
+            // Compute scattered light contribution
+            vec4 Ls = u_light_color * exp(-lightTau);
+
+            // Accumulate scattering
+            accumulatedScattering += u_scattering_coefficient * Ls * transmittance * noiseValue * u_step_length;
+
             t += u_step_length;
         }
 
         float transmittance = exp(-tau);
-        FragColor = u_background_color * transmittance + u_color * (1.0 - transmittance);
+        FragColor = u_background_color * transmittance + accumulatedScattering;
     } else if (u_density_source == 2) {
         while (t < tb) {
             vec3 P = local_camera_pos + r * t;
@@ -158,8 +186,37 @@ void main() {
             // Sample density from the 3D texture
             float density = texture(u_density_texture, texCoords).r * u_density_scale;
 
+            float extinction = density * (u_absorption_coefficient + u_scattering_coefficient);
+
             // Accumulate optical thickness
-            tau += density * u_absorption_coefficient * u_step_length;
+            tau += extinction * u_absorption_coefficient * u_step_length;
+
+            float transmittance = exp(-tau);
+
+            vec3 lightDir = normalize(u_light_position - P);
+            vec3 currentLightPos = P + lightDir * u_step_length / 2.0;
+
+            // Compute light contribution
+            float lightTau = 0.0;
+            vec3 lightAccumulation = vec3(0.0);
+            for (int step = 0; step < u_max_light_steps; step++) {
+                vec3 lightTexCoords = (currentLightPos - u_boxMin) / (u_boxMax - u_boxMin);
+                if (any(lessThan(lightTexCoords, vec3(0.0))) || any(greaterThan(lightTexCoords, vec3(1.0))))
+                    break;
+
+                // Sample density along the light ray
+                float lightDensity = texture(u_density_texture, lightTexCoords).r * u_density_scale;
+                lightTau += lightDensity * u_scattering_coefficient * u_step_length;
+
+                // Advance the light ray
+                currentLightPos += lightDir * u_step_length;
+            }
+
+            // Compute scattered light contribution
+            vec4 Ls = u_light_color * exp(-lightTau);
+
+            // Accumulate scattering
+            accumulatedScattering += u_scattering_coefficient * Ls * transmittance * density * u_step_length;
 
             // Break early if transmittance becomes negligible
             if (exp(-tau) < 0.01) {
@@ -173,6 +230,6 @@ void main() {
         float transmittance = exp(-tau);
 
         // Final color combining background and material color
-        FragColor = u_background_color * transmittance + u_color * (1.0 - transmittance);
+        FragColor = u_background_color * transmittance + accumulatedScattering;
     }
 }
