@@ -18,6 +18,8 @@ uniform int u_noise_detail;        // Detail level for procedural noise
 uniform float u_step_length;
 uniform sampler3D u_density_texture;  // 3D texture for VDB
 uniform float u_density_scale;        // Scale for density values
+uniform float u_scattering_coefficient;
+uniform int u_max_light_steps;
 
 
 //light uniforms
@@ -80,14 +82,57 @@ void main() {
     // Initialize variables for ray marching
     float tau = 0.0;
     float t = ta + u_step_length / 2.0;
+    vec3 accumulatedScattering = vec3(0.0);
 
-    // Handle density sources
+
     if (u_density_source == 0) {
-        float opticalThickness = tb - ta;
+        // Ray marching loop
+        while (t < tb) {
+            vec3 P = local_camera_pos + r * t; // Current sample position
 
-        float transmittance = exp(-u_absorption_coefficient * opticalThickness);
+            float density = u_constant_density;
+            float extinction = density * (u_absorption_coefficient + u_scattering_coefficient);
+            tau += extinction * u_step_length;
 
-        FragColor = u_background_color * transmittance;
+            // Compute transmittance
+            float transmittance = exp(-tau);
+
+            // Initialize secondary ray to the light source
+            vec3 lightDir = normalize(u_light_position - P);
+            vec3 currentLightPos = P + lightDir * u_step_length / 2.0;
+
+            // Compute light contribution
+            float lightTau = 0.0;
+            vec3 lightAccumulation = vec3(0.0);
+            //int maxLightSteps = 100; // Limit light marching steps
+            int maxLightSteps = u_max_light_steps;
+
+            //Second Ray Marching Loop
+            for (int step = 0; step < maxLightSteps; step++) {
+                vec3 texCoords = (currentLightPos - u_boxMin) / (u_boxMax - u_boxMin);
+                if (any(lessThan(texCoords, vec3(0.0))) || any(greaterThan(texCoords, vec3(1.0))))
+                    break;
+
+                // Accumulate optical thickness along the light ray
+                lightTau += u_constant_density * u_scattering_coefficient * u_step_length;
+                currentLightPos += lightDir * u_step_length;
+        }
+
+            // Compute Ls
+            vec3 Ls = u_light_color.rgb * exp(-lightTau);
+
+            // Accumulate scattering
+            accumulatedScattering += u_scattering_coefficient * Ls * transmittance * density * u_step_length;
+
+            // Advance the ray
+            t += u_step_length;
+        }
+
+        // Combine transmittance, scattering, and background color
+        float finalTransmittance = exp(-tau);
+        vec3 finalColor = u_background_color.rgb * finalTransmittance + accumulatedScattering;
+
+        FragColor = vec4(finalColor, 1.0);
 
     } else if (u_density_source == 1) {
         float tau = 0.0;

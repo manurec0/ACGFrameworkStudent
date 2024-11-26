@@ -66,11 +66,11 @@ public:
 	float noise_scale;
 	int noise_detail;
 	float step_length;
+	int max_light_steps;
 	float emission_coefficient;
 	float density_scale;
+	float scattering_coefficient;
 	glm::vec4 color;
-	glm::vec3 boxMin;
-	glm::vec3 boxMax;
 
 	Shader* basic_shader = NULL;
 	Shader* absorption_shader = NULL;
@@ -78,7 +78,7 @@ public:
 	Shader* normal_shader = NULL;
 
 	VolumeMaterial(double absorption_coefficient = 1.0, glm::vec4 color = glm::vec4(0.f),
-		float noise_scale = 1.558f, int noise_detail = 5.f, float step_length = 0.004f, float emission_coefficient = 1.0f, float density_scale = 1.0f);
+		float noise_scale = 1.558f, int noise_detail = 5.f, float step_length = 0.004f, float emission_coefficient = 1.0f, float density_scale = 1.0f, float scattering_coefficient = 1.0f);
 
 	void setUniforms(Camera* camera, glm::mat4 model) override {
 		setUniforms(camera, model, nullptr);

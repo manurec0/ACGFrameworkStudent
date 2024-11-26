@@ -180,7 +180,7 @@ void StandardMaterial::renderInMenu()
 	if (!this->show_normals) ImGui::ColorEdit3("Color", (float*)&this->color);
 }
 
-VolumeMaterial::VolumeMaterial(double absorption_coefficient, glm::vec4 color, float noise_scale, int noise_detail, float step_length, float emission_coefficient, float density_scale)
+VolumeMaterial::VolumeMaterial(double absorption_coefficient, glm::vec4 color, float noise_scale, int noise_detail, float step_length, float emission_coefficient, float density_scale, float scattering_coefficient)
 {
 	this->color = color;
 	this->absorption_coefficient = absorption_coefficient;
@@ -189,11 +189,13 @@ VolumeMaterial::VolumeMaterial(double absorption_coefficient, glm::vec4 color, f
 	this->step_length = step_length;
 	this->emission_coefficient = emission_coefficient;
 	this->density_scale = density_scale;
+	this->max_light_steps = 100;
 	this->basic_shader = Shader::Get("res/shaders/basic.vs", "res/shaders/basic.fs");
 	this->absorption_shader = Shader::Get("res/shaders/basic.vs", "res/shaders/test.fs");
 	this->normal_shader = Shader::Get("res/shaders/basic.vs", "res/shaders/normal.fs");
 	this->emission_absorption = Shader::Get("res/shaders/basic.vs", "res/shaders/emission-absorption.fs");
 	this->shader = this->absorption_shader;
+	this->scattering_coefficient = scattering_coefficient;
 
 }
 
@@ -214,6 +216,7 @@ void VolumeMaterial::setUniforms(Camera* camera, glm::mat4 model, Mesh* mesh) {
 	this->shader->setUniform("u_color", this->color);
 	this->shader->setUniform("u_absorption_coefficient", this->absorption_coefficient);
 	this->shader->setUniform("u_emission_coefficient", this->emission_coefficient);
+	this->shader->setUniform("u_scattering_coefficient", this->scattering_coefficient);
 
 	this->shader->setUniform("u_boxMin", mesh->aabb_min);
 	this->shader->setUniform("u_boxMax", mesh->aabb_max);
@@ -227,6 +230,7 @@ void VolumeMaterial::setUniforms(Camera* camera, glm::mat4 model, Mesh* mesh) {
 	this->shader->setUniform("u_step_length", this->step_length);
 	this->shader->setUniform("u_noise_scale", this->noise_scale);
 	this->shader->setUniform("u_noise_detail", this->noise_detail);
+	this->shader->setUniform("u_max_light_steps", this->max_light_steps);
 
 	// VDB-related uniforms
 	if (this->texture) {
@@ -292,6 +296,9 @@ void VolumeMaterial::render(Mesh* mesh, glm::mat4 model, Camera* camera) {
 void VolumeMaterial::renderInMenu() {
 	ImGui::ColorEdit3("Color", (float*)&this->color);
 	ImGui::SliderFloat("Absorption Coefficient", &this->absorption_coefficient, 0.0f, 2.0f); // Absorption control
+	ImGui::SliderFloat("Scattering Coefficient", &this->scattering_coefficient, 0.0f, 2.0f); // Absorption control
+	ImGui::SliderFloat("Step Length", &this->step_length, 0.01f, 3.0f); // Absorption control
+	ImGui::SliderInt("Light Step Length", &this->max_light_steps, 1, 100);
 
 	const char* shaderNames[] = { "Absorption Shader", "Basic Shader", "Normal Shader", "Emission-Absorption"};
 	const char* volumeTypeNames[] = { "Homogeneous", "Heterogeneous" };
@@ -315,7 +322,7 @@ void VolumeMaterial::renderInMenu() {
 
 	if (static_cast<int>(currentVolumeType) == 1) {
 		ImGui::SliderFloat("Emission Coefficient", &this->emission_coefficient, 0.0f, 5.0f);
-		ImGui::SliderFloat("Step Length", &this->step_length, 0.01f, 3.0f); // Absorption control
+
 		//ImGui::SliderFloat("Noise Detail", &this->noise_detail, 0.0f, 5.0f); // Absorption control
 		ImGui::SliderInt("Noise Detail", &this->noise_detail, 0, 5);
 		ImGui::SliderFloat("Noise Scale", &this->noise_scale, 0.0f, 5.0f);
@@ -461,7 +468,5 @@ void VolumeMaterial::estimate3DTexture(easyVDB::OpenVDBReader* vdbReader)
 		// and this: https://registry.khronos.org/OpenGL-Refpages/gl4/html/glTexImage3D.xhtml
 		this->texture = new Texture();
 		this->texture->create3D(resolution, resolution, resolution, GL_RED, GL_FLOAT, false, data, GL_R8);
-		this->boxMin = bbox.min;
-		this->boxMax = bbox.max;
 	}
 }
