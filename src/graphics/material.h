@@ -77,6 +77,7 @@ public:
 	Shader* absorption_shader = NULL;
 	Shader* emission_absorption = NULL;
 	Shader* normal_shader = NULL;
+	Shader* scattering_shader = NULL;
 
 	VolumeMaterial(double absorption_coefficient = 1.0, glm::vec4 color = glm::vec4(0.f),
 		float noise_scale = 1.558f, int noise_detail = 5.f, float step_length = 0.045f, float emission_coefficient = 1.0f, float density_scale = 1.0f, float scattering_coefficient = 1.0f, float isotropy_parameter = 0.f);

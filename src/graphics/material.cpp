@@ -10,7 +10,8 @@ enum ShaderType {
 	ABSORPTION_SHADER,
 	BASIC_SHADER,
 	NORMAL_SHADER,
-	EMISSION_ABSORPTION
+	EMISSION_ABSORPTION,
+	SCATTERING_SHADER
 };
 enum VolumeType {
 	HOMOGENEOUS = 0,
@@ -24,7 +25,7 @@ enum DensityType {
 };
 
 // store the current shader selection
-ShaderType currentShaderType = ABSORPTION_SHADER;
+ShaderType currentShaderType = SCATTERING_SHADER;
 VolumeType currentVolumeType = HOMOGENEOUS;
 DensityType currentDensityType = CONSTANT;
 
@@ -191,10 +192,11 @@ VolumeMaterial::VolumeMaterial(double absorption_coefficient, glm::vec4 color, f
 	this->density_scale = density_scale;
 	this->max_light_steps = 100;
 	this->basic_shader = Shader::Get("res/shaders/basic.vs", "res/shaders/basic.fs");
-	this->absorption_shader = Shader::Get("res/shaders/basic.vs", "res/shaders/test.fs");
+	this->absorption_shader = Shader::Get("res/shaders/basic.vs", "res/shaders/absorption.fs");
 	this->normal_shader = Shader::Get("res/shaders/basic.vs", "res/shaders/normal.fs");
 	this->emission_absorption = Shader::Get("res/shaders/basic.vs", "res/shaders/emission-absorption.fs");
-	this->shader = this->absorption_shader;
+	this->scattering_shader = Shader::Get("res/shaders/basic.vs", "res/shaders/scattering.fs");
+	this->shader = this->scattering_shader;
 	this->scattering_coefficient = scattering_coefficient;
 	this->isotropy_parameter = isotropy_parameter;
 
@@ -303,7 +305,7 @@ void VolumeMaterial::renderInMenu() {
 	ImGui::SliderInt("Light Step Length", &this->max_light_steps, 1, 100);
 	ImGui::SliderFloat("G parameter Value", &this->isotropy_parameter, -1.f, 1.0f);
 
-	const char* shaderNames[] = { "Absorption Shader", "Basic Shader", "Normal Shader", "Emission-Absorption"};
+	const char* shaderNames[] = { "Absorption Shader", "Basic Shader", "Normal Shader", "Emission-Absorption", "Scattering Shader"};
 	const char* volumeTypeNames[] = { "Homogeneous", "Heterogeneous" };
 	const char* densitySources[] = { "Constant", "3D Noise", "VDB File" };
 	int shaderIndex = static_cast<int>(currentShaderType); 
@@ -322,7 +324,6 @@ void VolumeMaterial::renderInMenu() {
 	if (ImGui::Combo("Volume Type", &volumeTypeIndex, volumeTypeNames, IM_ARRAYSIZE(volumeTypeNames))) {
 		currentVolumeType = static_cast<VolumeType>(volumeTypeIndex); 
 	}
-
 
 
 	//if (static_cast<int>(currentVolumeType) == 1) {

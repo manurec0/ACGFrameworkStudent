@@ -163,13 +163,18 @@ void main() {
             float lightTau = 0.0;
             vec3 lightAccumulation = vec3(0.0);
             for (int step = 0; step < u_max_light_steps; step++) {
-                vec3 texCoords = (currentLightPos - u_boxMin) / (u_boxMax - u_boxMin);
-                if (any(lessThan(texCoords, vec3(0.0))) || any(greaterThan(texCoords, vec3(1.0))))
-                    break;
+                //vec3 texCoords = (currentLightPos - u_boxMin) / (u_boxMax - u_boxMin);
+                //if (any(lessThan(texCoords, vec3(0.0))) || any(greaterThan(texCoords, vec3(1.0))))
+                //    break;
+                vec3 lightTexCoords = currentLightPos;
 
                 // Sample density along the light ray
                 float lightDensity = clamp(fractalPerlin(currentLightPos, u_noise_scale, u_noise_detail), 0.0, 1.0);
                 lightTau += lightDensity * u_scattering_coefficient * u_step_length;
+
+                // Stop marching if light ray exits the volume
+                if (lightDensity == 0.0)
+                    break;
 
                 // Advance the light ray
                 currentLightPos += lightDir * u_step_length;
@@ -180,7 +185,7 @@ void main() {
             float phase = (1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * cosTheta, 1.5);
 
             // Compute scattered light contribution
-            vec4 Ls = u_light_color * exp(-lightTau);
+            vec4 Ls = u_light_color * exp(-lightTau) * phase;
 
             // Accumulate scattering
             accumulatedScattering += u_scattering_coefficient * Ls * transmittance * noiseValue * u_step_length;
