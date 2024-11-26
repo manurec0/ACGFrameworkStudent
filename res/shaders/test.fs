@@ -20,6 +20,7 @@ uniform sampler3D u_density_texture;  // 3D texture for VDB
 uniform float u_density_scale;        // Scale for density values
 uniform float u_scattering_coefficient;
 uniform int u_max_light_steps;
+uniform float u_isotropy_parameter;
 
 
 //light uniforms
@@ -83,12 +84,16 @@ void main() {
     float tau = 0.0;
     float t = ta + u_step_length / 2.0;
     vec4 accumulatedScattering = vec4(0.0);
+    float g = u_isotropy_parameter;
+
 
 
     if (u_density_source == 0) {
         // Ray marching loop
         while (t < tb) {
+
             vec3 P = local_camera_pos + r * t; // Current sample position
+            vec3 viewDir = normalize(u_camera_position - P);
 
             float density = u_constant_density;
             float extinction = density * (u_absorption_coefficient + u_scattering_coefficient);
@@ -117,9 +122,12 @@ void main() {
                 lightTau += u_constant_density * u_scattering_coefficient * u_step_length;
                 currentLightPos += lightDir * u_step_length;
         }
+            //Phase function
+            float cosTheta = dot(normalize(lightDir), normalize(viewDir));
+            float phase = (1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * cosTheta, 1.5);
 
             // Compute Ls
-            vec4 Ls = u_light_color * exp(-lightTau);
+            vec4 Ls = u_light_color * exp(-lightTau) * phase;
 
             // Accumulate scattering
             accumulatedScattering += u_scattering_coefficient * Ls * transmittance * density * u_step_length;
@@ -130,7 +138,6 @@ void main() {
 
         // Combine transmittance, scattering, and background color
         float finalTransmittance = exp(-tau);
-        //vec3 finalColor = u_background_color.rgb * finalTransmittance + accumulatedScattering;
 
         FragColor = u_background_color * finalTransmittance + accumulatedScattering;
 
@@ -138,6 +145,9 @@ void main() {
 
         while (t < tb){
             vec3 P = local_camera_pos + r * t;
+
+            vec3 viewDir = normalize(u_camera_position - P);
+
             float noiseValue = clamp(fractalPerlin(P, u_noise_scale, u_noise_detail), 0.0, 1.0) * u_absorption_coefficient;
 
             float extinction = noiseValue * (u_absorption_coefficient + u_scattering_coefficient); //NOise is density 
@@ -165,6 +175,10 @@ void main() {
                 currentLightPos += lightDir * u_step_length;
             }
 
+            //Phase function
+            float cosTheta = dot(normalize(lightDir), normalize(viewDir));
+            float phase = (1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * cosTheta, 1.5);
+
             // Compute scattered light contribution
             vec4 Ls = u_light_color * exp(-lightTau);
 
@@ -179,6 +193,8 @@ void main() {
     } else if (u_density_source == 2) {
         while (t < tb) {
             vec3 P = local_camera_pos + r * t;
+
+            vec3 viewDir = normalize(u_camera_position - P);
 
             // Compute normalized texture coordinates
             vec3 texCoords = (P - u_boxMin) / (u_boxMax - u_boxMin);
@@ -212,8 +228,10 @@ void main() {
                 currentLightPos += lightDir * u_step_length;
             }
 
+            float cosTheta = dot(lightDir, viewDir);
+            float phase = (1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * cosTheta, 1.5);
             // Compute scattered light contribution
-            vec4 Ls = u_light_color * exp(-lightTau);
+            vec4 Ls = u_light_color * exp(-lightTau) * phase;
 
             // Accumulate scattering
             accumulatedScattering += u_scattering_coefficient * Ls * transmittance * density * u_step_length;

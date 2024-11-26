@@ -180,7 +180,7 @@ void StandardMaterial::renderInMenu()
 	if (!this->show_normals) ImGui::ColorEdit3("Color", (float*)&this->color);
 }
 
-VolumeMaterial::VolumeMaterial(double absorption_coefficient, glm::vec4 color, float noise_scale, int noise_detail, float step_length, float emission_coefficient, float density_scale, float scattering_coefficient)
+VolumeMaterial::VolumeMaterial(double absorption_coefficient, glm::vec4 color, float noise_scale, int noise_detail, float step_length, float emission_coefficient, float density_scale, float scattering_coefficient, float isotropy_parameter)
 {
 	this->color = color;
 	this->absorption_coefficient = absorption_coefficient;
@@ -196,6 +196,7 @@ VolumeMaterial::VolumeMaterial(double absorption_coefficient, glm::vec4 color, f
 	this->emission_absorption = Shader::Get("res/shaders/basic.vs", "res/shaders/emission-absorption.fs");
 	this->shader = this->absorption_shader;
 	this->scattering_coefficient = scattering_coefficient;
+	this->isotropy_parameter = isotropy_parameter;
 
 }
 
@@ -239,6 +240,7 @@ void VolumeMaterial::setUniforms(Camera* camera, glm::mat4 model, Mesh* mesh) {
 	this->shader->setUniform("u_density_source", currentDensityType); // 0, 1, or 2 based on GUI selection
 	this->shader->setUniform("u_density_scale", this->density_scale);
 	this->shader->setUniform("u_constant_density", 1.f);
+	this->shader->setUniform("u_isotropy_parameter", this->isotropy_parameter);
 
 	// Light uniforms
 	//this->shader->setUniform("u_light_intensity");
@@ -299,6 +301,7 @@ void VolumeMaterial::renderInMenu() {
 	ImGui::SliderFloat("Scattering Coefficient", &this->scattering_coefficient, 0.0f, 2.0f); // Absorption control
 	ImGui::SliderFloat("Step Length", &this->step_length, 0.01f, 3.0f); // Absorption control
 	ImGui::SliderInt("Light Step Length", &this->max_light_steps, 1, 100);
+	ImGui::SliderFloat("G parameter Value", &this->isotropy_parameter, -1.f, 1.0f);
 
 	const char* shaderNames[] = { "Absorption Shader", "Basic Shader", "Normal Shader", "Emission-Absorption"};
 	const char* volumeTypeNames[] = { "Homogeneous", "Heterogeneous" };
@@ -306,6 +309,11 @@ void VolumeMaterial::renderInMenu() {
 	int shaderIndex = static_cast<int>(currentShaderType); 
 	int volumeTypeIndex = static_cast<int>(currentVolumeType); 
 	int densityIndex = static_cast<int>(currentDensityType);
+
+	if (ImGui::Combo("Density Type", &densityIndex, densitySources, IM_ARRAYSIZE(densitySources))) {
+		currentDensityType = static_cast<DensityType>(densityIndex);
+	}
+	ImGui::SliderFloat("Density Scale", &this->density_scale, 0.1f, 10.0f);
 
 	if (ImGui::Combo("Shader Type", &shaderIndex, shaderNames, IM_ARRAYSIZE(shaderNames))) {
 		currentShaderType = static_cast<ShaderType>(shaderIndex);
@@ -315,18 +323,15 @@ void VolumeMaterial::renderInMenu() {
 		currentVolumeType = static_cast<VolumeType>(volumeTypeIndex); 
 	}
 
-	if (ImGui::Combo("Density Type", &densityIndex, densitySources, IM_ARRAYSIZE(densitySources))) {
-		currentDensityType = static_cast<DensityType>(densityIndex);
-	}
-	ImGui::SliderFloat("Density Scale", &this->density_scale, 0.1f, 10.0f);
 
-	if (static_cast<int>(currentVolumeType) == 1) {
-		ImGui::SliderFloat("Emission Coefficient", &this->emission_coefficient, 0.0f, 5.0f);
 
-		//ImGui::SliderFloat("Noise Detail", &this->noise_detail, 0.0f, 5.0f); // Absorption control
-		ImGui::SliderInt("Noise Detail", &this->noise_detail, 0, 5);
-		ImGui::SliderFloat("Noise Scale", &this->noise_scale, 0.0f, 5.0f);
-	}
+	//if (static_cast<int>(currentVolumeType) == 1) {
+	//	ImGui::SliderFloat("Emission Coefficient", &this->emission_coefficient, 0.0f, 5.0f);
+
+	//	//ImGui::SliderFloat("Noise Detail", &this->noise_detail, 0.0f, 5.0f); // Absorption control
+	//	ImGui::SliderInt("Noise Detail", &this->noise_detail, 0, 5);
+	//	ImGui::SliderFloat("Noise Scale", &this->noise_scale, 0.0f, 5.0f);
+	//}
 
 }
 
