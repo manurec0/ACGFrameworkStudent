@@ -21,6 +21,7 @@ uniform float u_density_scale;        // Scale for density values
 uniform float u_scattering_coefficient;
 uniform int u_max_light_steps;
 uniform float u_isotropy_parameter;
+uniform bool u_jittering;
 
 
 //light uniforms
@@ -60,6 +61,12 @@ vec2 intersectAABB(vec3 rayOrigin, vec3 rayDir, vec3 boxMin, vec3 boxMax) {
     return vec2(tNear, tFar);
 }
 
+float random (vec2 st) {
+    return fract(sin(dot(st.xy,
+                         vec2(12.9898,78.233)))*
+        43758.5453123);
+}
+
 void main() {
     // Transform camera position to local space
     mat4 inverseModel = inverse(u_model);
@@ -91,8 +98,9 @@ void main() {
     if (u_density_source == 0) {
         // Ray marching loop
         while (t < tb) {
-
-            vec3 P = local_camera_pos + r * t; // Current sample position
+            float jitter = u_jittering ? random(gl_FragCoord.xy + t) : 0.0;
+            //vec3 P = local_camera_pos + r * t; // Current sample position
+            vec3 P = local_camera_pos + r * (t + jitter * u_step_length); 
             vec3 viewDir = normalize(u_camera_position - P);
 
             float density = u_constant_density;
@@ -163,9 +171,7 @@ void main() {
             float lightTau = 0.0;
             vec3 lightAccumulation = vec3(0.0);
             for (int step = 0; step < u_max_light_steps; step++) {
-                //vec3 texCoords = (currentLightPos - u_boxMin) / (u_boxMax - u_boxMin);
-                //if (any(lessThan(texCoords, vec3(0.0))) || any(greaterThan(texCoords, vec3(1.0))))
-                //    break;
+
                 vec3 lightTexCoords = currentLightPos;
 
                 // Sample density along the light ray
@@ -197,7 +203,11 @@ void main() {
         FragColor = u_background_color * transmittance + accumulatedScattering;
     } else if (u_density_source == 2) {
         while (t < tb) {
-            vec3 P = local_camera_pos + r * t;
+
+            float jitter = u_jittering ? random(gl_FragCoord.xy + t) : 0.0;
+            //vec3 P = local_camera_pos + r * t; // Current sample position
+            vec3 P = local_camera_pos + r * (t + jitter * u_step_length);
+            //vec3 P = local_camera_pos + r * t;
 
             vec3 viewDir = normalize(u_camera_position - P);
 

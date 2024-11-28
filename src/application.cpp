@@ -29,7 +29,7 @@ void Application::init(GLFWwindow* window)
     example->material = new StandardMaterial();
     this->node_list.push_back(example);*/
 
-    VolumeNode* volumeNode = new VolumeNode();
+    VolumeNode* volumeNode = new VolumeNode("Scattering");
     volumeNode->mesh = Mesh::Get("res/meshes/cube.obj");
     VolumeMaterial* volumeMaterial = new VolumeMaterial();
     volumeNode->material = volumeMaterial;
@@ -42,6 +42,13 @@ void Application::init(GLFWwindow* window)
     this->node_list.push_back(newLight);
     this->light_list.push_back(newLight);
 
+    //isosurface material
+    VolumeNode* volumeNode2 = new VolumeNode("IsoSurface");
+    volumeNode2->mesh = Mesh::Get("res/meshes/cube.obj");
+    IsoMaterial* isoMaterial = new IsoMaterial();
+    volumeNode2->material = isoMaterial;
+    isoMaterial->loadVDB("res/meshes/bunny_cloud.vdb");
+    this->node_list.push_back(volumeNode2);
 }
 
 void Application::update(float dt)

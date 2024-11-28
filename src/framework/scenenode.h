@@ -37,6 +37,7 @@ public:
 	float density;  // Density of the volume
 
 	VolumeNode();
+	VolumeNode(const char* name);
 
 	// Custom render function for volume rendering
 	virtual void render(Camera* camera);

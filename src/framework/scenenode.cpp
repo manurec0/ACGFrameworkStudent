@@ -67,6 +67,12 @@ VolumeNode::VolumeNode()
 	this->name = std::string("Volume_Node" + std::to_string(this->lastNameId++));
 }
 
+VolumeNode::VolumeNode(const char* name)
+{
+	this->type = NODE_BASE;
+	this->name = name;
+}
+
 void VolumeNode::render(Camera* camera)
 {
 	if (this->material && this->visible)
